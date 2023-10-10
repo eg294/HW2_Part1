@@ -1,5 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib as mpl
+from sklearn.preprocessing import StandardScaler
 
 #===============================Question 1===============================
 # Replace 'imports-85.csv' with the actual file path if it's not in the current directory
@@ -11,80 +14,90 @@ df = pd.read_csv(dataset_url)
 # Now, you can work with the 'df' DataFrame as needed
 pd.set_option('display.max_columns', None)  # Show all columns
 #print(df.head(10))
-feature_columns = df[['curb-weight', 'engine-size']]
+feature_columns = df[['curb-weight']]
+feature_columns2 = df[['engine-size']]
 target_variable_column = df[['city-mpg']]
 
-
 # Convert selected columns to a NumPy array
-X_col = feature_columns.values
+X1_col = feature_columns.values
+X2_col = feature_columns2.values
 y_col = target_variable_column.values
 
-#Plot layout
-#plt.title("Predicted vs Curb Weight") 
-#plt.xlabel("$curb-weight$")
-#plt.ylabel("$ engine-size $")
-#plt.scatter(X[:,0],y)
-#plt.show()
+
+#add X0 = 1 to each instance
+X_new = np.array([[-2],[5]])
+X_new_b = np.c_[np.ones((2,1)),X_new]
+
+scale = StandardScaler()
+X1_col= scale.fit_transform(X1_col)
+X2_col=scale.fit_transform(X2_col)
+
+#adding the BIAS to term X
+X_b = np.c_[np.ones((len(X1_col),1)),X1_col]
+X_b2 = np.c_[np.ones((len(X2_col),1)),X2_col]
+
+#Hyperparameters
+alpha = 0.1
+
+#learning schedule hyperparameters
+epochs = 300
+t0,t1 = 5,50
+
+def learning_schedule(t):
+    return t0/(t+t1)
 
 
+np.random.seed(42)
+theta = np.random.randn(2,1)
 
-def gradient_descent(m_now, b_now, xpoints,ypoints, L):
+#Storing theta
+theta_path_sgd = []
 
-    m_gradient = 0
-    b_gradient = 0
+m = len(X_b)
+n_shown = 20
 
-    n = len(xpoints)
+#Ploting Curb-Weight and City MPG
+for nepoch in range(epochs):
+    for iteration in range(m):
+        if nepoch == 0 and iteration < n_shown:
+            y_predict = X_new_b * theta
+            color = mpl.colors.rgb2hex(plt.cm.OrRd(iteration/n_shown+0.15))
+            plt.plot(X_new,y_predict,color=color)
 
-    for i in range(n):
-        x = xpoints[i]
-        y = ypoints[i]
+        random_index = np.random.randint(m)
+        xi = X_b[random_index:random_index +1]
+        yi = y_col[random_index:random_index + 1]
 
-        m_gradient += -(2/n)* x * (y -(m_now * x * b_now))
-        b_gradient += -(2/n) * (y -(m_now * x * b_now))
+        gradients = 2 * xi.T @ (xi @ theta - yi)
+        eta = learning_schedule(nepoch * m + iteration)
+        theta = theta - eta * (gradients + 2 * alpha * theta) #L2
+        theta_path_sgd.append(theta)
 
 
-    m = m_now - m_gradient * L
-    b = b_now - b_gradient * L
-
-    return m, b
-
-#===============================
-#X = from the curb weight
-#y = miles per gallon  (Dependent from X )
-m = 0
-b = 0
-L = 0.0001
-epochs = 1000
-
-for i in range(epochs):
-    m,b = gradient_descent(m,b,X_col,y_col,L)
-
-print(m,b)
-
-plt.title("Predicted vs Curb Weight") 
-plt.xlabel("$curb-weight$")
-plt.ylabel("$ City MPG $")
-plt.scatter(X_col[:,0],y_col,color="blue")
-plt.plot([m * x + b for x in X_col[:,0]],color = "red")
+plt.plot(X1_col,y_col, "b.")
+plt.xlabel("$Curb-Weight$")
+plt.ylabel("$ City-MPG $")
 plt.show()
 
+print("\n")
 
-#===============================
-#X = from the Engine Size
-#y = Miles per gallon  (Dependent from X )
-m1 = 0
-b1 = 0
-L1 = 0.0001
-epochs1 = 1000
+#Ploting Engine Size and City MPG
+for nepoch in range(epochs):
+    for iteration in range(m):
+        if nepoch == 0 and iteration < n_shown:
+            y_predict = X_new_b @ theta
+            color = mpl.colors.rgb2hex(plt.cm.OrRd(iteration / n_shown + 0.15))
+            plt.plot(X_new,y_predict,color = color)
 
-for i in range(epochs1):
-    m1,b1 = gradient_descent(m1,b1,X_col[:,1],y_col,L1)
+        random_index = np.random.randint(m)
+        xi = X_b2[random_index:random_index + 1]
+        yi = y_col[random_index:random_index + 1]
+        gradients = 2 * xi.T @ (xi @ theta - yi)
+        eta = learning_schedule(nepoch * m + iteration)
+        theta = theta - eta * (gradients + 2 * alpha * theta)
+        theta_path_sgd.append(theta)
 
-print(m1,b1)
-
-plt.title("Predicted vs Engine Size") 
-plt.xlabel("$engine-size$")
+plt.plot(X2_col,y_col,"b.")
+plt.xlabel("$Engine Size$")
 plt.ylabel("$ City MPG $")
-plt.scatter(X_col[:,1],y_col,color="blue")
-plt.plot([m1 * x + b1 for x in X_col[:,1]],color = "red")
 plt.show()
